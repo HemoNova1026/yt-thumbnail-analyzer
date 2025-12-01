@@ -1,0 +1,5 @@
+{
+  "name": "YT Thumbnail Analyzer",
+  "description": "A visual dashboard for YouTube thumbnail performance analysis, featuring CTR sorting, algorithm ratings, and AI-powered insights.",
+  "requestFramePermissions": []
+}

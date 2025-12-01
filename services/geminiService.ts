@@ -24,9 +24,11 @@ async function urlToBase64(url: string): Promise<string | null> {
 }
 
 export const analyzeThumbnail = async (data: ThumbnailData): Promise<string> => {
+  // Check if API Key is present
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    return "Please configure your API Key to use Gemini features.";
+  
+  if (!apiKey || apiKey === "undefined") {
+    return "找不到 API Key。請確認您已在 Netlify 的 'Environment variables' 中設定了名為 'API_KEY' 的變數，並且已經重新部署 (Trigger deploy)。";
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -34,17 +36,20 @@ export const analyzeThumbnail = async (data: ThumbnailData): Promise<string> => 
   // Try to get image
   const base64Image = await urlToBase64(data.thumbnailUrl);
   
+  // Localized Prompt in Traditional Chinese
   let prompt = `
-    Analyze this YouTube thumbnail performance.
-    Title: "${data.title}"
-    CTR: ${data.ctr}%
-    Algorithm Rating: ${data.rating}
-    Views: ${data.views}
+    請分析這張 YouTube 縮圖的成效表現。
+    
+    影片資訊：
+    標題: "${data.title}"
+    CTR (點閱率): ${data.ctr}%
+    演算法評級: ${data.rating}
+    觀看次數: ${data.views}
 
-    Please provide:
-    1. A brief analysis of why this thumbnail might have performed this way (High or Low CTR).
-    2. Suggest 3 specific improvements if the CTR is low (<5%), or 3 key strengths if it is high (>5%).
-    3. Comment on the synergy between the title and the expected visual.
+    請提供以下繁體中文分析：
+    1. 簡短分析為何這張縮圖會有這樣的成效表現（高 CTR 或 低 CTR）。
+    2. 如果 CTR 偏低 (<5%)，請給出 3 個具體的改進建議；如果 CTR 很高 (>5%)，請列出 3 個值得保持的關鍵優點。
+    3. 評論標題與視覺圖像之間的關聯性與吸引力。
   `;
 
   try {
@@ -68,16 +73,22 @@ export const analyzeThumbnail = async (data: ThumbnailData): Promise<string> => 
       });
     } else {
       // Text-only analysis (fallback)
-      prompt += "\n(Note: Image could not be accessed directly, please analyze based on title and metrics)";
+      prompt += "\n(注意：無法直接讀取圖片檔案，請根據標題與數據進行分析)";
       response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [{ text: prompt }] }
       });
     }
 
-    return response.text || "No analysis generated.";
-  } catch (error) {
+    return response.text || "無法產生分析結果。";
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return "Failed to generate analysis. Please check your API key and connection.";
+    
+    // enhance error message for user
+    if (error.message && error.message.includes("API key not valid")) {
+      return "分析失敗：API Key 無效。請檢查您的 Google AI Studio 金鑰是否正確複製，且沒有多餘空格。";
+    }
+    
+    return "分析失敗。請檢查您的網路連線或 API Key 設定。";
   }
 };
